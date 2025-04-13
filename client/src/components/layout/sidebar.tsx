@@ -7,6 +7,7 @@ import {
   Users,
   Map,
   Settings,
+  Shield,
   LogOut
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -21,7 +22,8 @@ const Sidebar: React.FC = () => {
   const user = {
     name: 'Somchai P.',
     studentId: '6XXXXXXXX',
-    profileImage: null
+    profileImage: null,
+    role: 'admin' // For demo purposes, set as admin to show admin panel
   };
   
   const navigation = [
@@ -30,6 +32,11 @@ const Sidebar: React.FC = () => {
     { name: 'Social Seating', href: '/social-seating', icon: Users },
     { name: 'Library Map', href: '/library-map', icon: Map },
     { name: 'Preferences', href: '/preferences', icon: Settings },
+  ];
+
+  // Admin link only visible for admin users
+  const adminLinks = [
+    { name: 'Admin Panel', href: '/admin', icon: Shield }
   ];
 
   const handleLogout = () => {
@@ -72,6 +79,38 @@ const Sidebar: React.FC = () => {
             </Link>
           );
         })}
+        
+        {/* Admin links - only shown for admin users */}
+        {user.role === 'admin' && (
+          <>
+            <div className="pt-4 pb-2">
+              <div className="px-3">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Administration
+                </p>
+              </div>
+            </div>
+            
+            {adminLinks.map((item) => {
+              const isActive = location === item.href;
+              
+              return (
+                <Link 
+                  key={item.name} 
+                  href={item.href}
+                  className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+                    isActive
+                      ? 'text-primary bg-primary-50'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-primary'
+                  }`}
+                >
+                  <item.icon className="h-5 w-5 mr-3" />
+                  {item.name}
+                </Link>
+              );
+            })}
+          </>
+        )}
       </nav>
       
       <div className="mt-auto pt-4 border-t border-gray-200">

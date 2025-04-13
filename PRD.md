@@ -1,573 +1,401 @@
-# Chulalongkorn Engineering Library Tracker
-## Technical Product Requirements Document
+# Chulalongkorn Engineering Library Occupancy Tracker
+## Product Requirements Document (PRD)
 
-### 1. Project Overview
+### 1. Introduction
 
-This document provides technical specifications for developing the Chulalongkorn Engineering Library Occupancy Tracker, a full-stack application to monitor and share real-time library occupancy data. This PRD is specifically designed for implementation guidance in development environments like Replit and Cursor.
+#### 1.1 Purpose
+This document outlines the requirements for the Chulalongkorn Engineering Library Occupancy Tracker, a web and mobile application designed to provide real-time information about library occupancy, historical usage patterns, and a social platform for students to share seating availability.
 
-### 2. Technology Stack
+#### 1.2 Problem Statement
+At Chulalongkorn University, students must scan their ID cards to enter the Engineering Library, but there is currently no system to monitor real-time occupancy or seat availability. Students often waste time searching for available seats, especially during peak periods, and have no way to plan their library visits efficiently.
 
-#### 2.1 Frontend
-- **Framework**: React 18+ with TypeScript
-- **State Management**: Redux Toolkit or React Query
-- **UI Components**: Material-UI or Chakra UI
-- **Styling**: Tailwind CSS for utility-first styling
-- **Data Visualization**: Chart.js or D3.js for analytics displays
-- **Maps/Layout**: React Flow or custom SVG for interactive library maps
-- **Real-time Updates**: Socket.io client for live occupancy data
-- **Forms Management**: React Hook Form + Zod for validation
-- **Image Processing**: react-image-crop for profile/seat photos
+#### 1.3 Project Goals
+- Create a real-time occupancy tracking system that leverages the existing ID scan infrastructure
+- Provide analytical insights into library usage patterns
+- Develop a social platform for students to share seat availability and duration of use
+- Improve the overall library experience for students
+- Create a scalable solution that could potentially be adopted by other university facilities
 
-#### 2.2 Backend
-- **Runtime**: Node.js with Express.js
-- **Language**: JavaScript (TypeScript recommended for type safety)
-- **API Architecture**: RESTful API with JSON responses
-- **Real-time Communication**: Socket.io for live updates
-- **Authentication**: JWT-based authentication with refresh tokens
-- **Validation**: Express-validator or Joi
+### 2. User Personas
 
-#### 2.3 Database
-- **Primary Database**: MongoDB
-  - **Justification**: 
-    - Free tier available through MongoDB Atlas
-    - Flexible schema ideal for evolving application requirements
-    - Good performance for read-heavy applications
-    - Built-in scaling capabilities
-    - Native geospatial indexing for location features
-  - **Configuration**: MongoDB Atlas free tier (512MB storage, shared RAM)
+#### 2.1 Regular Student
+**Name:** Somchai
+**Description:** Undergraduate engineering student who visits the library frequently to study.
+**Goals:** Find available seating quickly, plan library visits during less crowded times, connect with friends studying in the library.
+**Pain Points:** Wastes time looking for seats, arrives at fully occupied library, difficulty finding suitable study spaces.
 
-- **Real-time Database**: Firebase Realtime Database
-  - **Justification**:
-    - Free tier supports up to 1GB storage and 10GB/month transfer
-    - Built specifically for real-time applications
-    - Easy implementation with web and mobile clients
-    - Handles offline scenarios automatically
-  - **Configuration**: Spark Plan (free) with proper security rules
+#### 2.2 Group Project Team
+**Name:** Design Team
+**Description:** A group of 3-4 students working together on assignments and projects.
+**Goals:** Find adjacent seating for the whole group, reserve or claim space for extended work sessions.
+**Pain Points:** Difficult to find enough adjacent seats, uncertainty about how long current occupants will stay.
 
-- **Image Storage**: Firebase Storage
-  - Free tier offers 5GB storage and 1GB/day transfer
-  - Easy integration with the rest of the stack
-  - Can implement client-side resizing to reduce storage needs
+#### 2.3 Library Staff
+**Name:** Librarian Apinya
+**Description:** Staff member responsible for library operations and resource management.
+**Goals:** Understand usage patterns, improve resource allocation, ensure safety regulations compliance.
+**Pain Points:** No data on peak hours, difficulty in planning staffing, no insights for improvement decisions.
 
-#### 2.4 DevOps & Deployment
-- **Version Control**: Git with GitHub
-- **Development Environment**: Replit or Cursor
-- **Deployment**: Vercel (frontend), Render or Railway (backend)
-- **Environment Variables**: .env files (local) and platform-specific secrets
+### 3. Features and Requirements
 
-### 3. Data Models
+#### 3.1 Main Dashboard / Home Page
 
-#### 3.1 User
-```typescript
-interface User {
-  _id: string;              // MongoDB ObjectId
-  studentId: string;        // University ID
-  name: string;
-  email: string;
-  profileImage?: string;    // URL to profile image
-  preferences: {
-    notifications: boolean;
-    notificationThreshold: number;
-    favoriteAreas: string[];
-  };
-  role: "student" | "admin" | "staff";
-  createdAt: Date;
-  lastLogin: Date;
-}
-```
+**Purpose:** Provide at-a-glance information about current library occupancy.
 
-#### 3.2 Entry/Exit Event
-```typescript
-interface EntryExitEvent {
-  _id: string;              // MongoDB ObjectId
-  studentId: string;        // University ID
-  eventType: "entry" | "exit";
-  timestamp: Date;
-  // Optional fields for analytics
-  deviceId?: string;        // Which scanner was used
-  location?: string;        // Location of scanner
-}
-```
+**Key Components:**
+- Real-time occupancy counter with large, prominent display
+- Visual capacity indicator (green: plenty of space, yellow: filling up, red: nearly full)
+- Current day's occupancy graph showing fluctuations throughout the day
+- Quick statistics (current capacity percentage, number of seats available)
+- Recommendations based on current status (e.g., "Good time to visit" or "Library busy")
+- Quick links to other application pages
+- Announcement section for library updates
 
-#### 3.3 Occupancy Record
-```typescript
-interface OccupancyRecord {
-  _id: string;              // MongoDB ObjectId
-  timestamp: Date;
-  currentOccupancy: number;
-  capacity: number;
-  // For more granular data if multiple zones exist
-  zoneOccupancy?: {
-    [zoneId: string]: number;
-  };
-}
-```
+**Technical Requirements:**
+- Real-time data updates (refresh at least every 30 seconds)
+- Responsive design for both desktop and mobile viewing
+- Data visualization components for occupancy graphs
+- Connection to backend API for current occupancy data
 
-#### 3.4 Seat Post
-```typescript
-interface SeatPost {
-  _id: string;              // MongoDB ObjectId
-  userId: string;           // Reference to User
-  location: {
-    zone: string;
-    seatId?: string;
-    coordinates?: {
-      x: number;
-      y: number;
-    };
-  };
-  imageUrl?: string;        // URL to uploaded image
-  duration: number;         // In minutes
-  endTime: Date;            // Calculated from post time + duration
-  groupSize: number;        // How many people in this spot
-  message?: string;         // Optional status message
-  isAnonymous: boolean;     // Whether to show user info
-  verifications: {
-    positive: number;       // People confirming this is accurate
-    negative: number;       // People saying seat is actually available
-  };
-  status: "active" | "expired" | "removed";
-  createdAt: Date;
-}
-```
+#### 3.2 Analytics & Trends Page
 
-#### 3.5 Library Zone
-```typescript
-interface LibraryZone {
-  _id: string;              // MongoDB ObjectId
-  name: string;
-  capacity: number;
-  resources: string[];      // e.g., ["computers", "printers", "quiet_area"]
-  coordinates: {
-    // For mapping purposes
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
-  currentOccupancy: number; // Updated regularly
-}
-```
+**Purpose:** Provide historical insights into library usage patterns.
 
-### 4. API Endpoints
+**Key Components:**
+- Historical occupancy data visualized through various charts:
+  - Weekly patterns (heatmap showing busy times by day/hour)
+  - Monthly trends with line or bar charts
+  - Academic calendar overlay showing correlation between academic events and library usage
+- Filter options by date range, semester, academic year
+- Comparative analysis tools (this week vs. last week, this semester vs. last semester)
+- Peak hours identification with statistical insights
+- Download/export options for data (CSV, PDF)
 
-#### 4.1 Authentication APIs
-- `POST /api/auth/login` - Authenticate user
+**Technical Requirements:**
+- Interactive data visualization components
+- Date range selectors and filtering mechanisms
+- Data export functionality
+- Historical data storage and retrieval APIs
+
+#### 3.3 Social Seating Page
+
+**Purpose:** Create a community-driven platform for real-time seat sharing and availability updates.
+
+**Key Components:**
+- Interactive seating map showing the library layout with clickable seats/areas
+- Student check-in functionality:
+  - Photo upload of study space/area
+  - Duration selector (how long they plan to stay)
+  - Group size indicator
+  - Optional status message
+- Real-time feed of recent check-ins and updates
+- Filtering options (by floor, area, time availability)
+- Verification system allowing students to confirm seat status
+- Time-based expiration of posts
+- Privacy options (show profile or post anonymously)
+- Quick-search for available seats based on criteria (quiet zone, power outlets, etc.)
+- Heat map overlay showing busy sections based on user reports
+
+**Technical Requirements:**
+- Real-time database for post updates
+- Image upload and storage functionality
+- User authentication tied to university accounts
+- Geolocation or QR code verification (optional)
+- Moderation tools to prevent misuse
+- Auto-expiration functionality for posts
+
+#### 3.4 User Preferences & Notifications Page
+
+**Purpose:** Allow students to personalize their experience and receive alerts.
+
+**Key Components:**
+- Occupancy threshold alert settings
+- Notification preferences (push, email, SMS)
+- Favorite study times and locations
+- Personal usage statistics (if user login is tied to scan system)
+- Saved views or filters from the analytics page
+- Notification history
+- Settings for social seating features (default privacy settings, etc.)
+
+**Technical Requirements:**
+- User preference storage system
+- Notification delivery system (multiple channels)
+- Personal data analytics
+- Settings management interface
+
+#### 3.5 Library Resources Map
+
+**Purpose:** Provide information about different library zones and available resources.
+
+**Key Components:**
+- Interactive map of the library showing different zones
+- Resource availability in each zone (computers, study rooms)
+- Zone-specific occupancy data (if multiple scan points exist)
+- Search functionality for specific resources
+- Integration with social seating data to show availability
+- Information about special facilities (printers, scanners, etc.)
+
+**Technical Requirements:**
+- Interactive map interface
+- Resource database
+- Search functionality
+- Integration with occupancy and social seating data
+
+#### 3.6 Admin Panel (for library staff)
+
+**Purpose:** Provide management tools and insights for library administrators.
+
+**Key Components:**
+- Capacity limit management
+- Detailed analytics dashboard
+- Data export tools
+- System configuration options
+- Announcement management for main dashboard
+- Moderation tools for social features
+- User management
+- Access to raw occupancy data
+
+**Technical Requirements:**
+- Administrative authentication and authorization
+- Data management interfaces
+- Configuration tools
+- Announcement creation and publishing system
+- Moderation queue for reported content
+
+### 4. Technical Architecture
+
+#### 4.1 Backend Components
+
+**Database:**
+- User profiles and authentication
+- Entry/exit events tracking
+- Historical occupancy data
+- User preferences and notifications
+- Social posts and interactions
+- Library resources and zones information
+
+**APIs:**
+- Real-time occupancy updates API
+- Historical data retrieval API
+- User management API
+- Preferences and notifications API
+- Social features API (posts, verification, etc.)
+- Admin management API
+
+**Services:**
+- Authentication service
+- Notification service
+- Data processing service
+- Image storage service
+- Analytics engine
+
+#### 4.2 Frontend Components
+
+**Web Application:**
+- Responsive design framework
+- Real-time data update mechanism
+- Data visualization libraries
+- Interactive mapping components
+- Image upload and display
+- User interface for all required pages
+- Cross-browser compatibility
+
+**Mobile Application:**
+- Progressive Web App implementation
+- Touch-optimized interfaces
+- Mobile notifications integration
+- Camera access for photo uploads
+- Location services integration (optional)
+
+### 5. Non-functional Requirements
+
+#### 5.1 Performance
+- Dashboard must update within 5 seconds of ID card scans
+- Application must support at least 500 concurrent users
+- Page load times should not exceed 3 seconds
+- Database must handle at least 10,000 entry/exit events per day
+
+#### 5.2 Security
+- All user data must be encrypted
+- Authentication must use secure protocols
+- User photos and personal information must be protected
+- Compliance with university data protection policies
+
+#### 5.3 Reliability
+- System uptime of at least 99.5% during library operating hours
+- Automatic data backups at least once per day
+- Graceful degradation during connectivity issues
+- Error logging and monitoring
+
+#### 5.4 Usability
+- Intuitive interface requiring no training for basic features
+- Accessibility compliance for users with disabilities
+- Multilingual support (Thai and English)
+- Clear feedback for all user actions
+
+### 6. Implementation Phases
+
+#### 6.1 Phase 1: MVP (Weeks 1-3)
+- Basic database structure and API endpoints
+- Main dashboard with real-time occupancy counter
+- Simple historical view with basic charts
+- User authentication integration
+- Admin panel with basic functionality
+- Simulated data for testing
+
+#### 6.2 Phase 2: Core Features (Weeks 4-6)
+- Complete analytics implementation
+- User preferences and notifications
+- Initial version of social seating page
+- Library resource map
+- Integration with actual ID scan system
+- Basic mobile responsiveness
+
+#### 6.3 Phase 3: Enhanced Features (Weeks 7-9)
+- Advanced analytics and trends
+- Full social seating functionality with photos
+- Verification system for seat availability
+- Heat maps and advanced visualizations
+- Complete mobile optimization
+- Performance optimization
+
+#### 6.4 Phase 4: Refinement (Weeks 10-12)
+- User testing and feedback implementation
+- Bug fixes and performance improvements
+- Documentation
+- Preparation for wider rollout
+- Additional features based on initial feedback
+
+### 7. Success Metrics
+
+#### 7.1 User Adoption
+- At least 40% of regular library users actively using the application within 3 months
+- At least 20% of users contributing to social seating information
+
+#### 7.2 Accuracy
+- Occupancy data accuracy rate of at least 95%
+- Social seating information verified as accurate at least 85% of the time
+
+#### 7.3 User Satisfaction
+- Average user satisfaction rating of at least 4/5 stars
+- Reduction in complaints about finding seating
+- Positive qualitative feedback from focus groups
+
+#### 7.4 System Performance
+- Consistent performance metrics meeting requirements
+- No major outages during critical periods (exam weeks)
+- Successful scaling during peak usage
+
+### 8. Risks and Mitigation
+
+#### 8.1 Technical Risks
+- **Risk:** Integration difficulties with existing ID scan system
+  **Mitigation:** Early testing with system administrators, fallback to manual data entry if needed
+
+- **Risk:** Performance issues during peak usage
+  **Mitigation:** Load testing before launch, scalable architecture design
+
+- **Risk:** Inaccurate occupancy data
+  **Mitigation:** Multiple data validation mechanisms, regular audits of count accuracy
+
+#### 8.2 User Adoption Risks
+- **Risk:** Low adoption of social features
+  **Mitigation:** Gamification elements, targeted promotion, clear value demonstration
+
+- **Risk:** Misuse of social platform
+  **Mitigation:** Clear guidelines, moderation system, reporting mechanisms
+
+- **Risk:** Privacy concerns
+  **Mitigation:** Anonymous posting options, clear privacy policies, opt-out capabilities
+
+### 9. Future Enhancements
+
+- Machine learning for predictive occupancy forecasting
+- Integration with room/desk reservation system
+- Expansion to other university libraries and facilities
+- Mobile app with push notifications
+- Gamification elements to encourage participation
+- Virtual tour integration
+- Integration with university calendar for exam periods
+
+### 10. Appendix
+
+#### 10.1 User Flow Diagrams
+[Placeholder for user flow diagrams]
+
+#### 10.2 Wireframes
+[Placeholder for wireframes of key screens]
+
+#### 10.3 Data Schema
+[Placeholder for database schema diagrams]
+
+#### 10.4 API Specifications
+
+##### Authentication APIs
+- `GET /api/auth/microsoft` - Initiate Microsoft OAuth flow for student authentication
+- `GET /api/auth/microsoft/callback` - Handle Microsoft OAuth callback
 - `POST /api/auth/logout` - End user session
 - `POST /api/auth/refresh` - Refresh access token
-- `GET /api/auth/me` - Get current user profile
+- `GET /api/auth/me` - Get current user profile information
 
-#### 4.2 Occupancy APIs
-- `GET /api/occupancy/current` - Get current occupancy
-- `GET /api/occupancy/history` - Get historical data with filters
-- `GET /api/occupancy/zones` - Get zone-specific occupancy
+##### Occupancy APIs
+- `GET /api/occupancy/current` - Get current library occupancy statistics
+- `GET /api/occupancy/history` - Get historical occupancy data with filtering options
+  - Query parameters: `startDate`, `endDate`, `interval`, `zone`
+- `GET /api/occupancy/zones` - Get zone-specific occupancy data
 - `POST /api/occupancy/scan` - Record entry/exit event (admin/system only)
+  - Body: `{ studentId, eventType, deviceId, location }`
 
-#### 4.3 Social Seating APIs
+##### Analytics APIs
+- `GET /api/analytics/weekly` - Get weekly occupancy patterns as heatmap data
+- `GET /api/analytics/trends` - Get monthly/semester trends with academic calendar overlay
+- `GET /api/analytics/peak-hours` - Get statistical analysis of peak usage hours
+- `GET /api/analytics/compare` - Compare occupancy between two time periods
+  - Query parameters: `period1Start`, `period1End`, `period2Start`, `period2End`
+- `GET /api/analytics/export` - Export analytics data in CSV or PDF format
+  - Query parameters: `format`, `startDate`, `endDate`, `type`
+
+##### Social Seating APIs
 - `GET /api/seats` - Get all active seat posts
-- `GET /api/seats/zone/:zoneId` - Get seats by zone
+- `GET /api/seats/zone/:zoneId` - Get seats by library zone
 - `POST /api/seats` - Create new seat post
+  - Body: `{ zone, seatId, coordinates, duration, groupSize, message, isAnonymous }`
 - `PUT /api/seats/:id` - Update seat post
 - `DELETE /api/seats/:id` - Remove seat post
-- `POST /api/seats/:id/verify` - Verify/dispute seat availability
+- `POST /api/seats/:id/verify` - Verify or dispute seat availability
+  - Body: `{ verification: "positive" | "negative" }`
 - `POST /api/seats/upload` - Upload seat image
 
-#### 4.4 User Preference APIs
-- `GET /api/users/preferences` - Get user preferences
-- `PUT /api/users/preferences` - Update preferences
-- `POST /api/users/notifications/subscribe` - Subscribe to notifications
+##### User Preference APIs
+- `GET /api/users/preferences` - Get user notification and display preferences
+- `PUT /api/users/preferences` - Update user preferences
+  - Body: `{ notifications, notificationThreshold, favoriteAreas, ... }`
+- `POST /api/users/notifications/subscribe` - Subscribe to occupancy threshold notifications
+  - Body: `{ threshold, notificationType }`
+- `GET /api/users/statistics` - Get personal library usage statistics
 
-#### 4.5 Admin APIs
-- `GET /api/admin/users` - Get user list
-- `GET /api/admin/stats` - Get system statistics
-- `PUT /api/admin/capacity` - Update capacity settings
-- `POST /api/admin/announcement` - Create announcement
+##### Library Resources APIs
+- `GET /api/resources/zones` - Get all library zones with details
+- `GET /api/resources/zones/:zoneId` - Get specific zone details
+- `GET /api/resources/search` - Search for specific resources
+  - Query parameters: `query`, `type`, `availability`
+- `GET /api/resources/facilities` - Get information about special facilities
 
-### 5. Real-time Architecture
+##### Admin APIs
+- `GET /api/admin/users` - Get list of application users
+- `PUT /api/admin/users/:id` - Update user role or status
+- `GET /api/admin/stats` - Get system statistics and usage metrics
+- `PUT /api/admin/capacity` - Update library capacity settings
+  - Body: `{ totalCapacity, zoneCapacities: { [zoneId]: capacity } }`
+- `POST /api/admin/announcement` - Create dashboard announcement
+  - Body: `{ message, expiryDate, priority }`
+- `GET /api/admin/logs` - Get system logs and events
+- `POST /api/admin/export` - Export administrative data
+  - Body: `{ type, format, dateRange }`
 
-#### 5.1 Socket.io Events
+#### 10.5 Socket.IO Real-time Events
 - `occupancy_update` - Broadcast when occupancy changes
 - `new_seat_post` - Broadcast when new seat is posted
-- `seat_update` - Broadcast when seat status changes
-- `seat_verification` - Broadcast when seat is verified/disputed
-
-#### 5.2 Firebase Realtime Database Structure
-```
-library_tracker/
-├── occupancy/
-│   ├── current/
-│   │   ├── total: 237
-│   │   ├── capacity: 400
-│   │   ├── percentage: 59.25
-│   │   └── lastUpdated: timestamp
-│   └── zones/
-│       ├── zone1/
-│       │   ├── current: 45
-│       │   └── capacity: 100
-│       └── zone2/
-│           ├── current: 78
-│           └── capacity: 150
-├── seats/
-│   ├── active/
-│   │   ├── seat1/
-│   │   │   ├── location: {...}
-│   │   │   ├── endTime: timestamp
-│   │   │   └── ...other fields
-│   │   └── seat2/
-│   │       └── ...
-│   └── recentlyExpired/
-│       └── ...
-└── announcements/
-    ├── current/
-    │   ├── message: "Library closes early today at 6pm"
-    │   └── expiry: timestamp
-    └── history/
-        └── ...
-```
-
-### 6. Key Implementation Details
-
-#### 6.1 Real-time Occupancy Calculation
-```javascript
-// Pseudocode for occupancy calculation service
-async function updateOccupancy() {
-  // Get all entry events from today
-  const entryEvents = await EntryExitEvent.find({
-    eventType: 'entry',
-    timestamp: { $gte: startOfToday() }
-  }).count();
-  
-  // Get all exit events from today
-  const exitEvents = await EntryExitEvent.find({
-    eventType: 'exit',
-    timestamp: { $gte: startOfToday() }
-  }).count();
-  
-  // Calculate current occupancy
-  const currentOccupancy = entryEvents - exitEvents;
-  
-  // Update in MongoDB for historical records
-  await OccupancyRecord.create({
-    timestamp: new Date(),
-    currentOccupancy,
-    capacity: LIBRARY_CAPACITY
-  });
-  
-  // Update in Firebase for real-time access
-  await firebaseDb.ref('library_tracker/occupancy/current').update({
-    total: currentOccupancy,
-    capacity: LIBRARY_CAPACITY,
-    percentage: (currentOccupancy / LIBRARY_CAPACITY) * 100,
-    lastUpdated: firebase.database.ServerValue.TIMESTAMP
-  });
-  
-  // Emit socket event for connected clients
-  io.emit('occupancy_update', {
-    currentOccupancy,
-    capacity: LIBRARY_CAPACITY,
-    percentage: (currentOccupancy / LIBRARY_CAPACITY) * 100
-  });
-}
-```
-
-#### 6.2 Seat Post Expiration Job
-```javascript
-// Pseudocode for seat expiration job
-async function expireSeats() {
-  const now = new Date();
-  
-  // Find all active seats that have passed their endTime
-  const expiredSeats = await SeatPost.find({
-    status: 'active',
-    endTime: { $lte: now }
-  });
-  
-  for (const seat of expiredSeats) {
-    // Update status in MongoDB
-    seat.status = 'expired';
-    await seat.save();
-    
-    // Update in Firebase
-    await firebaseDb.ref(`library_tracker/seats/active/${seat._id}`).remove();
-    await firebaseDb.ref(`library_tracker/seats/recentlyExpired/${seat._id}`).set({
-      ...seat.toJSON(),
-      expiredAt: firebase.database.ServerValue.TIMESTAMP
-    });
-    
-    // Notify connected clients
-    io.emit('seat_update', {
-      id: seat._id,
-      status: 'expired'
-    });
-  }
-}
-
-// Run every minute
-setInterval(expireSeats, 60 * 1000);
-```
-
-#### 6.3 Image Upload and Processing
-```javascript
-// Pseudocode for image upload middleware
-const uploadSeatImage = async (req, res, next) => {
-  try {
-    if (!req.file) {
-      return next();
-    }
-    
-    // Resize image to standard dimensions
-    const resizedBuffer = await sharp(req.file.buffer)
-      .resize(800, 600, { fit: 'inside' })
-      .jpeg({ quality: 80 })
-      .toBuffer();
-    
-    // Generate filename with UUID
-    const filename = `seats/${uuidv4()}.jpg`;
-    
-    // Upload to Firebase Storage
-    const fileRef = storageRef.child(filename);
-    await fileRef.put(resizedBuffer, {
-      contentType: 'image/jpeg',
-    });
-    
-    // Get public URL
-    const imageUrl = await fileRef.getDownloadURL();
-    
-    // Add to request for controller use
-    req.imageUrl = imageUrl;
-    next();
-  } catch (error) {
-    next(error);
-  }
-};
-```
-
-### 7. Frontend Components Structure
-
-```
-src/
-├── components/
-│   ├── layout/
-│   │   ├── Header.tsx
-│   │   ├── Footer.tsx
-│   │   ├── Sidebar.tsx
-│   │   └── Layout.tsx
-│   ├── dashboard/
-│   │   ├── OccupancyCounter.tsx
-│   │   ├── DailyGraph.tsx
-│   │   ├── StatusIndicator.tsx
-│   │   └── QuickStats.tsx
-│   ├── analytics/
-│   │   ├── WeeklyHeatmap.tsx
-│   │   ├── TrendChart.tsx
-│   │   ├── FilterPanel.tsx
-│   │   └── ExportTools.tsx
-│   ├── social/
-│   │   ├── SeatMap.tsx
-│   │   ├── SeatPost.tsx
-│   │   ├── SeatForm.tsx
-│   │   ├── ImageUploader.tsx
-│   │   └── VerificationButtons.tsx
-│   ├── preferences/
-│   │   ├── NotificationSettings.tsx
-│   │   ├── ProfileEditor.tsx
-│   │   └── SavedFilters.tsx
-│   ├── map/
-│   │   ├── LibraryMap.tsx
-│   │   ├── ZoneDetails.tsx
-│   │   └── ResourceSearch.tsx
-│   ├── admin/
-│   │   ├── UserTable.tsx
-│   │   ├── CapacityEditor.tsx
-│   │   └── AnnouncementCreator.tsx
-│   └── common/
-│       ├── Button.tsx
-│       ├── Card.tsx
-│       ├── Modal.tsx
-│       └── LoadingSpinner.tsx
-├── pages/
-│   ├── DashboardPage.tsx
-│   ├── AnalyticsPage.tsx
-│   ├── SocialSeatingPage.tsx
-│   ├── PreferencesPage.tsx
-│   ├── ResourceMapPage.tsx
-│   ├── AdminPage.tsx
-│   ├── LoginPage.tsx
-│   └── NotFoundPage.tsx
-└── services/
-    ├── api.ts
-    ├── auth.ts
-    ├── socket.ts
-    ├── firebase.ts
-    └── analytics.ts
-```
-
-### 8. Project Setup Instructions
-
-#### 8.1 Initial Setup in Replit/Cursor
-
-1. Create two separate projects/repositories:
-   - `library-tracker-frontend` (React/TypeScript)
-   - `library-tracker-backend` (Node.js/Express)
-
-2. Frontend initialization:
-```bash
-npx create-react-app library-tracker-frontend --template typescript
-cd library-tracker-frontend
-npm install @mui/material @emotion/react @emotion/styled @mui/icons-material
-npm install react-router-dom @reduxjs/toolkit react-redux
-npm install chart.js react-chartjs-2 socket.io-client
-npm install firebase
-npm install react-hook-form zod @hookform/resolvers
-```
-
-3. Backend initialization:
-```bash
-mkdir library-tracker-backend
-cd library-tracker-backend
-npm init -y
-npm install express mongoose dotenv cors helmet socket.io
-npm install jsonwebtoken bcryptjs
-npm install multer sharp uuid
-npm install firebase-admin
-npm install --save-dev nodemon
-```
-
-#### 8.2 Environment Configuration
-
-1. Frontend `.env` file:
-```
-REACT_APP_API_URL=http://localhost:5000/api
-REACT_APP_SOCKET_URL=http://localhost:5000
-REACT_APP_FIREBASE_API_KEY=your_firebase_api_key
-REACT_APP_FIREBASE_AUTH_DOMAIN=your_firebase_auth_domain
-REACT_APP_FIREBASE_PROJECT_ID=your_firebase_project_id
-REACT_APP_FIREBASE_STORAGE_BUCKET=your_firebase_storage_bucket
-REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_firebase_messaging_sender_id
-REACT_APP_FIREBASE_APP_ID=your_firebase_app_id
-REACT_APP_FIREBASE_MEASUREMENT_ID=your_firebase_measurement_id
-```
-
-2. Backend `.env` file:
-```
-PORT=5000
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/library-tracker
-JWT_SECRET=your_jwt_secret_key
-JWT_REFRESH_SECRET=your_jwt_refresh_secret_key
-NODE_ENV=development
-FIREBASE_CREDENTIALS=./firebase-credentials.json
-```
-
-#### 8.3 Database Setup
-
-1. MongoDB Atlas Setup:
-   - Create free tier account at https://www.mongodb.com/cloud/atlas
-   - Create new cluster
-   - Create database user with read/write privileges
-   - Configure network access to allow connections from anywhere (for development)
-   - Get connection string and add to backend `.env`
-
-2. Firebase Setup:
-   - Create project at https://firebase.google.com/
-   - Enable Authentication, Realtime Database, and Storage
-   - Configure security rules for Realtime Database:
-   ```
-   {
-     "rules": {
-       "library_tracker": {
-         "occupancy": {
-           ".read": true,
-           ".write": false,
-           "current": {
-             ".write": "auth != null && auth.token.admin == true"
-           }
-         },
-         "seats": {
-           "active": {
-             ".read": true,
-             ".write": "auth != null",
-             "$seatId": {
-               ".write": "auth != null && (newData.child('userId').val() == auth.uid || root.child('users').child(auth.uid).child('role').val() == 'admin')"
-             }
-           }
-         }
-       }
-     }
-   }
-   ```
-   - Download service account credentials and save as `firebase-credentials.json` in backend root
-
-### 9. Development Milestones
-
-#### 9.1 Phase 1: Core Infrastructure (Week 1-2)
-- Set up project repositories and initial configuration
-- Implement database models and connections
-- Create basic API endpoints
-- Set up authentication system
-- Implement occupancy calculation logic
-
-#### 9.2 Phase 2: Dashboard & Analytics (Week 3-4)
-- Create main dashboard UI
-- Implement real-time occupancy updates
-- Develop charts and graphs for analytics
-- Set up historical data storage and retrieval
-- Create filtering and date range selection
-
-#### 9.3 Phase 3: Social Seating Features (Week 5-6)
-- Implement seat posting functionality
-- Create image upload and storage system
-- Develop interactive seating map
-- Implement verification system
-- Create seat expiration logic
-
-#### 9.4 Phase 4: User Features & Admin Panel (Week 7-8)
-- Create user preferences and settings
-- Implement notification system
-- Develop admin dashboard
-- Add announcement creation
-- Create resource map
-
-#### 9.5 Phase 5: Testing & Optimization (Week 9-12)
-- Comprehensive testing across all features
-- Performance optimization
-- Mobile responsiveness
-- Security hardening
-- Documentation and final polish
-
-### 10. Production Considerations
-
-#### 10.1 Scaling Strategy
-- Implement MongoDB indexes for frequent queries
-- Use Firebase caching strategies
-- Consider Redis for additional caching if needed
-- Implement pagination for large data sets
-- Use image compression and lazy loading
-
-#### 10.2 Security Measures
-- Implement rate limiting on APIs
-- Use content security policies
-- Sanitize all user inputs
-- Implement proper CORS configuration
-- Regular security audits
-
-#### 10.3 Monitoring & Analytics
-- Set up error logging with Sentry or similar service
-- Implement user analytics with Firebase Analytics
-- Create admin monitoring dashboard
-- Regular database usage monitoring
-
-### 11. Appendix
-
-#### 11.1 Helpful Resources
-- React TypeScript Documentation: https://create-react-app.dev/docs/adding-typescript/
-- MongoDB Atlas Documentation: https://docs.atlas.mongodb.com/
-- Firebase Documentation: https://firebase.google.com/docs
-- Socket.io Documentation: https://socket.io/docs/v4
-- Material-UI Documentation: https://mui.com/getting-started/usage/
-
-#### 11.2 Recommended Extensions for Cursor/VSCode
-- ESLint
-- Prettier
-- MongoDB for VS Code
-- Firebase Explorer
-- React Developer Tools
+- `seat_update` - Broadcast when seat status changes or is verified
+- `announcement` - Broadcast new system announcements
+- `capacity_change` - Broadcast when library capacity settings are updated

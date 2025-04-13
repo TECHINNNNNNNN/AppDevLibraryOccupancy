@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { useLocation } from 'wouter';
 import { File, Eye, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -211,7 +211,7 @@ const Dashboard: React.FC = () => {
       {/* Library Map */}
       <LibraryMap 
         zones={occupancyData.zones}
-        lastUpdated={occupancyData.lastUpdated}
+        lastUpdated={formatDistanceToNow(occupancyData.lastUpdated, { addSuffix: true })}
         onViewDetailedMap={() => navigate('/library-map')}
         onZoneClick={(zoneId) => navigate(`/library-map?zone=${zoneId}`)}
       />

@@ -2,17 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useToast } from '@/hooks/use-toast';
-import MicrosoftLoginButton from '@/components/microsoft-login-button';
 import CuLogo from '@/assets/icons/CuLogo';
 import { useAuth } from '@/lib/auth';
 
 const Login = () => {
   const [_, navigate] = useLocation();
   const { toast } = useToast();
-  const { loginWithMicrosoft, user, loading: authLoading } = useAuth();
+  const { loginWithEmail, user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState('');
   
   // Check if user is already logged in
   useEffect(() => {
@@ -21,12 +23,13 @@ const Login = () => {
     }
   }, [user, navigate]);
   
-  const handleMicrosoftLogin = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
     setError(null);
     
     try {
-      await loginWithMicrosoft();
+      await loginWithEmail(email);
       
       toast({
         title: 'Login successful',
@@ -40,8 +43,6 @@ const Login = () => {
       // Handle specific errors
       if (err.message?.includes('Chulalongkorn University accounts')) {
         errorMessage = 'Only Chulalongkorn University (@student.chula.ac.th) accounts are allowed.';
-      } else if (err.message?.includes('user canceled')) {
-        errorMessage = 'Login was canceled.';
       }
       
       setError(errorMessage);
@@ -82,10 +83,25 @@ const Login = () => {
               </Alert>
             )}
             
-            <MicrosoftLoginButton 
-              onClick={handleMicrosoftLogin} 
-              loading={loading || authLoading}
-            />
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Input
+                  type="email"
+                  placeholder="name@student.chula.ac.th"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={loading || authLoading}
+              >
+                {loading || authLoading ? "Signing in..." : "Sign in"}
+              </Button>
+            </form>
             
             <div className="relative">
               <div className="absolute inset-0 flex items-center">

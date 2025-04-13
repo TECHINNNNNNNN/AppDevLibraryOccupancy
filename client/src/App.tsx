@@ -12,6 +12,7 @@ import Analytics from "@/pages/analytics";
 import SocialSeating from "@/pages/social-seating";
 import LibraryMap from "@/pages/library-map";
 import Preferences from "@/pages/preferences";
+import AdminPanel from "@/pages/admin";
 import NotFound from "@/pages/not-found";
 
 // Lazy load the login page
@@ -34,7 +35,7 @@ function App() {
             <Route path="/">
               {() => {
                 // Check if user is logged in
-                const isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
+                const isLoggedIn = !!sessionStorage.getItem('mockUser');
                 
                 if (!isLoggedIn) {
                   return <Redirect to="/auth" />;
@@ -48,6 +49,7 @@ function App() {
                       <Route path="/social-seating" component={SocialSeating} />
                       <Route path="/library-map" component={LibraryMap} />
                       <Route path="/preferences" component={Preferences} />
+                      <Route path="/admin" component={AdminPanel} />
                       <Route component={NotFound} />
                     </Switch>
                   </AppShell>
