@@ -4,23 +4,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/lib/auth';
 import MicrosoftLoginButton from '@/components/microsoft-login-button';
 import CuLogo from '@/assets/icons/CuLogo';
+import { apiRequest } from '@/lib/queryClient';
 
 const Login = () => {
   const [_, navigate] = useLocation();
-  const { user, login } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Redirect if already logged in
+  // Check if user is already logged in
   useEffect(() => {
-    if (user) {
+    const isLoggedIn = sessionStorage.getItem('isLoggedIn');
+    if (isLoggedIn === 'true') {
       navigate('/');
     }
-  }, [user, navigate]);
+  }, [navigate]);
   
   const handleMicrosoftLogin = async () => {
     setLoading(true);
@@ -29,12 +29,15 @@ const Login = () => {
     try {
       // In a real app, this would trigger Microsoft OAuth
       // For demo purposes, we'll simulate a successful login
-      await login({
+      const res = await apiRequest("POST", "/api/auth/login", {
         email: '6XXXXXXXX@student.chula.ac.th',
         microsoftId: 'ms-123456',
         name: 'Somchai P.',
         studentId: '6XXXXXXXX'
       });
+      
+      // Set some session indicator
+      sessionStorage.setItem('isLoggedIn', 'true');
       
       toast({
         title: 'Login successful',

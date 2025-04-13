@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import CuLogo from "@/assets/icons/CuLogo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLocation } from 'wouter';
+import { useToast } from "@/hooks/use-toast";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +16,7 @@ import {
 
 const Header: React.FC = () => {
   const [_, navigate] = useLocation();
+  const { toast } = useToast();
   
   // Mock user data for the demo
   const user = {
@@ -24,7 +26,16 @@ const Header: React.FC = () => {
   };
   
   const handleLogout = () => {
-    // Simple redirect to auth page for demo
+    // Clear the session
+    sessionStorage.removeItem('isLoggedIn');
+    
+    // Show logout toast
+    toast({
+      title: "Logged out",
+      description: "You have been successfully logged out.",
+    });
+    
+    // Redirect to auth page
     navigate('/auth');
   };
   

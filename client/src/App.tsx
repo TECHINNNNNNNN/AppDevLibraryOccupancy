@@ -32,16 +32,27 @@ function App() {
             </Route>
             
             <Route path="/">
-              <AppShell>
-                <Switch>
-                  <Route path="/" component={Dashboard} />
-                  <Route path="/analytics" component={Analytics} />
-                  <Route path="/social-seating" component={SocialSeating} />
-                  <Route path="/library-map" component={LibraryMap} />
-                  <Route path="/preferences" component={Preferences} />
-                  <Route component={NotFound} />
-                </Switch>
-              </AppShell>
+              {() => {
+                // Check if user is logged in
+                const isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
+                
+                if (!isLoggedIn) {
+                  return <Redirect to="/auth" />;
+                }
+                
+                return (
+                  <AppShell>
+                    <Switch>
+                      <Route path="/" component={Dashboard} />
+                      <Route path="/analytics" component={Analytics} />
+                      <Route path="/social-seating" component={SocialSeating} />
+                      <Route path="/library-map" component={LibraryMap} />
+                      <Route path="/preferences" component={Preferences} />
+                      <Route component={NotFound} />
+                    </Switch>
+                  </AppShell>
+                );
+              }}
             </Route>
           </Switch>
         </Suspense>

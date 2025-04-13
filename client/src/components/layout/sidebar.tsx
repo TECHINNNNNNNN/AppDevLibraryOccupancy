@@ -33,10 +33,16 @@ const Sidebar: React.FC = () => {
   ];
 
   const handleLogout = () => {
+    // Clear the session
+    sessionStorage.removeItem('isLoggedIn');
+    
+    // Show toast notification
     toast({
       title: "Logged out",
       description: "You have been successfully logged out.",
     });
+    
+    // Navigate to login page
     navigate('/auth');
   };
 
