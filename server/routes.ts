@@ -117,6 +117,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Authentication routes
+  app.get('/api/auth/microsoft', (_req, res) => {
+    // In a real application, this would redirect to Microsoft's OAuth page
+    // For demo purposes, we're returning instructions
+    res.json({
+      message: 'In a production environment, this would redirect to Microsoft authentication.',
+      microsoftAuthUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize'
+    });
+  });
+  
+  // Microsoft OAuth callback endpoint
+  app.get('/api/auth/microsoft/callback', (_req, res) => {
+    // In a real application, this would handle the OAuth callback from Microsoft
+    // For demo purposes, we're returning a success message
+    res.json({
+      message: 'OAuth callback received. In production, this would validate the code and create a session.'
+    });
+  });
+  
+  // Microsoft OAuth token validation endpoint
+  app.post('/api/auth/microsoft/token', (_req, res) => {
+    // In a real application, this would validate the token with Microsoft Graph API
+    // For demo purposes, we're returning a success message
+    res.status(200).json({
+      message: 'Token validation endpoint. In production, this would validate the token with Microsoft Graph.'
+    });
+  });
+  
   app.post('/api/auth/login', async (req, res) => {
     try {
       const loginData = loginSchema.parse(req.body);
@@ -154,9 +181,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  app.post('/api/auth/logout', (_req, res) => {
+    // In a real app, this would invalidate sessions
+    res.json({ success: true, message: 'Logged out successfully' });
+  });
+  
   app.get('/api/auth/me', async (req, res) => {
     // In a real app, this would check JWT or session
-    // For now, we'll return a mock response
+    // For demo purposes, we'll return an unauthorized status
+    // This would normally extract user information from the session
     res.status(401).json({ error: 'Unauthorized' });
   });
   

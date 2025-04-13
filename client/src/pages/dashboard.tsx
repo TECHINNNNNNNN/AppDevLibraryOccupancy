@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { useLocation } from 'wouter';
-import { File, Eye } from 'lucide-react';
+import { File, Eye, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import AnnouncementBanner from '@/components/dashboard/announcement-banner';
 import OccupancyCard from '@/components/dashboard/occupancy-card';
 import AvailableSeatsCard from '@/components/dashboard/available-seats-card';
@@ -14,20 +15,12 @@ import SocialActivity, { SocialUpdate } from '@/components/dashboard/social-acti
 import LibraryMap from '@/components/dashboard/library-map';
 import { useSocket, sendSocketMessage } from '@/lib/socket';
 import { LibraryZone } from '@/assets/library-map';
+import { useOccupancy } from '@/hooks/use-occupancy';
 
 const Dashboard: React.FC = () => {
   const [_, navigate] = useLocation();
-  const [occupancy, setOccupancy] = useState({
-    current: 237,
-    total: 400,
-    percentage: 59
-  });
-  const [zones, setZones] = useState<LibraryZone[]>([
-    { id: 1, name: 'Zone A - Reading Area', current: 32, capacity: 100, percentage: 32 },
-    { id: 2, name: 'Zone B - Computer Lab', current: 47, capacity: 50, percentage: 94 },
-    { id: 3, name: 'Zone C - Group Study', current: 54, capacity: 80, percentage: 68 },
-    { id: 4, name: 'Zone D - Quiet Zone', current: 22, capacity: 40, percentage: 55 }
-  ]);
+  const { occupancyData, loading, error, refreshOccupancy } = useOccupancy();
+  
   const [announcement, setAnnouncement] = useState('The library will close early at 20:00 today due to system maintenance. Please plan accordingly.');
   const [socialUpdates, setSocialUpdates] = useState<SocialUpdate[]>([
     {
@@ -74,39 +67,13 @@ const Dashboard: React.FC = () => {
     values: [45, 87, 156, 201, 245, 267, 310, 345, 290, 234, 178, 145, 120, 98, 65]
   };
   
-  // Socket connection
-  const { subscribe } = useSocket(() => {
-    // Initialize by requesting the current occupancy data
-    sendSocketMessage('getOccupancy');
-  });
+  // Subscribe to socket updates for announcements and other updates
+  const { subscribe } = useSocket();
   
-  // Subscribe to socket updates
   useEffect(() => {
     const unsubscribe = subscribe((message) => {
-      if (message.type === 'occupancyUpdate') {
-        setOccupancy({
-          current: message.data.current,
-          total: message.data.total,
-          percentage: Math.round((message.data.current / message.data.total) * 100)
-        });
-        
-        if (message.data.zones) {
-          setZones(message.data.zones);
-        }
-      } else if (message.type === 'initialData') {
-        // Handle initial data
-        if (message.data.occupancy) {
-          setOccupancy({
-            current: message.data.occupancy.current,
-            total: message.data.occupancy.total,
-            percentage: Math.round((message.data.occupancy.current / message.data.occupancy.total) * 100)
-          });
-          
-          if (message.data.occupancy.zones) {
-            setZones(message.data.occupancy.zones);
-          }
-        }
-        
+      if (message.type === 'initialData' || message.type === 'announcementUpdate') {
+        // Handle announcements
         if (message.data.announcements && message.data.announcements.length > 0) {
           setAnnouncement(message.data.announcements[0].message);
         }
@@ -116,13 +83,17 @@ const Dashboard: React.FC = () => {
     return () => unsubscribe();
   }, [subscribe]);
   
-  // Calculate available seats
+  // Calculate available seats based on occupancy data
   const availableSeats = {
-    total: occupancy.total - occupancy.current,
-    percentChange: 12,
-    quiet: 32,
-    group: 54,
-    computer: 15
+    total: occupancyData.total - occupancyData.current,
+    percentChange: 12, // This would come from an API in a real implementation
+    // Map zones to categories (in a real app, this would be more sophisticated)
+    quiet: occupancyData.zones.find(z => z.name.includes('Quiet'))?.capacity - 
+           (occupancyData.zones.find(z => z.name.includes('Quiet'))?.current || 0) || 32,
+    group: occupancyData.zones.find(z => z.name.includes('Group'))?.capacity - 
+           (occupancyData.zones.find(z => z.name.includes('Group'))?.current || 0) || 54,
+    computer: occupancyData.zones.find(z => z.name.includes('Computer'))?.capacity - 
+              (occupancyData.zones.find(z => z.name.includes('Computer'))?.current || 0) || 15
   };
   
   // Recent entries data
@@ -165,16 +136,23 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
         <div className="mt-4 flex md:mt-0 md:ml-4">
-          <Button variant="outline" className="gap-2">
-            <File className="h-5 w-5 text-gray-500" />
-            Export Data
+          <Button variant="outline" className="gap-2" onClick={refreshOccupancy}>
+            <RefreshCw className={`h-5 w-5 text-gray-500 ${loading ? 'animate-spin' : ''}`} />
+            Refresh Data
           </Button>
-          <Button className="ml-3 gap-2">
+          <Button className="ml-3 gap-2" onClick={() => navigate('/library-map')}>
             <Eye className="h-5 w-5" />
             View Library
           </Button>
         </div>
       </div>
+
+      {/* Connection error alert */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
       {/* Announcement banner */}
       <AnnouncementBanner message={announcement} />
@@ -182,9 +160,10 @@ const Dashboard: React.FC = () => {
       {/* Current Occupancy */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <OccupancyCard 
-          current={occupancy.current} 
-          total={occupancy.total} 
-          percentage={occupancy.percentage} 
+          current={occupancyData.current} 
+          total={occupancyData.total} 
+          percentage={occupancyData.percentage}
+          lastUpdated={occupancyData.lastUpdated}
         />
         
         <AvailableSeatsCard 
@@ -231,8 +210,8 @@ const Dashboard: React.FC = () => {
 
       {/* Library Map */}
       <LibraryMap 
-        zones={zones}
-        lastUpdated="2 minutes ago"
+        zones={occupancyData.zones}
+        lastUpdated={occupancyData.lastUpdated}
         onViewDetailedMap={() => navigate('/library-map')}
         onZoneClick={(zoneId) => navigate(`/library-map?zone=${zoneId}`)}
       />

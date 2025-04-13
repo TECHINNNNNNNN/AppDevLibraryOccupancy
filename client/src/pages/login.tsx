@@ -1,43 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from '@/hooks/use-toast';
 import MicrosoftLoginButton from '@/components/microsoft-login-button';
 import CuLogo from '@/assets/icons/CuLogo';
-import { apiRequest } from '@/lib/queryClient';
+import { useAuth } from '@/lib/auth';
 
 const Login = () => {
   const [_, navigate] = useLocation();
   const { toast } = useToast();
+  const { loginWithMicrosoft, user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   // Check if user is already logged in
   useEffect(() => {
-    const isLoggedIn = sessionStorage.getItem('isLoggedIn');
-    if (isLoggedIn === 'true') {
+    if (user) {
       navigate('/');
     }
-  }, [navigate]);
+  }, [user, navigate]);
   
   const handleMicrosoftLogin = async () => {
     setLoading(true);
     setError(null);
     
     try {
-      // In a real app, this would trigger Microsoft OAuth
-      // For demo purposes, we'll simulate a successful login
-      const res = await apiRequest("POST", "/api/auth/login", {
-        email: '6XXXXXXXX@student.chula.ac.th',
-        microsoftId: 'ms-123456',
-        name: 'Somchai P.',
-        studentId: '6XXXXXXXX'
-      });
-      
-      // Set some session indicator
-      sessionStorage.setItem('isLoggedIn', 'true');
+      await loginWithMicrosoft();
       
       toast({
         title: 'Login successful',
@@ -45,8 +34,17 @@ const Login = () => {
       });
       
       navigate('/');
-    } catch (err) {
-      setError('Authentication failed. Please try again.');
+    } catch (err: any) {
+      let errorMessage = 'Authentication failed. Please try again.';
+      
+      // Handle specific errors
+      if (err.message?.includes('Chulalongkorn University accounts')) {
+        errorMessage = 'Only Chulalongkorn University (@student.chula.ac.th) accounts are allowed.';
+      } else if (err.message?.includes('user canceled')) {
+        errorMessage = 'Login was canceled.';
+      }
+      
+      setError(errorMessage);
       console.error('Login error:', err);
     } finally {
       setLoading(false);
@@ -86,7 +84,7 @@ const Login = () => {
             
             <MicrosoftLoginButton 
               onClick={handleMicrosoftLogin} 
-              loading={loading}
+              loading={loading || authLoading}
             />
             
             <div className="relative">
@@ -95,14 +93,14 @@ const Login = () => {
               </div>
               <div className="relative flex justify-center text-xs uppercase">
                 <span className="bg-background px-2 text-muted-foreground">
-                  Demo Information
+                  Information
                 </span>
               </div>
             </div>
             
             <div className="text-xs text-gray-500 text-center">
-              <p>This is a demonstration of the Chulalongkorn Engineering Library Occupancy Tracker.</p>
-              <p className="mt-1">Click the Microsoft button to sign in with the demo account.</p>
+              <p>Only Chulalongkorn University student accounts (@student.chula.ac.th) are allowed to sign in.</p>
+              <p className="mt-1">The student ID will be extracted from your email address.</p>
             </div>
           </CardContent>
         </Card>

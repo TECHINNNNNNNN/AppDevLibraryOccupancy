@@ -20,11 +20,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
-import { Camera, Clock, Users } from "lucide-react";
+import { Clock, Users } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LibraryZone } from "@/assets/library-map";
+import ImageUploader from "./image-uploader";
 
 const formSchema = z.object({
   zone: z.string({
@@ -36,6 +37,10 @@ const formSchema = z.object({
   groupSize: z.number().min(1).max(10),
   isAnonymous: z.boolean().default(false),
   imageUrl: z.string().optional(),
+  coordinates: z.object({
+    x: z.number(),
+    y: z.number()
+  }).optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -53,7 +58,7 @@ const CreatePost: React.FC<CreatePostProps> = ({
   onSubmit,
   zones 
 }) => {
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadedImage, setUploadedImage] = useState<File | null>(null);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -64,31 +69,30 @@ const CreatePost: React.FC<CreatePostProps> = ({
       duration: 120, // 2 hours
       groupSize: 1,
       isAnonymous: false,
+      coordinates: { x: 0, y: 0 }
     },
   });
   
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-        form.setValue("imageUrl", reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+  const handleImageChange = (file: File | null, imageUrl: string | null) => {
+    setUploadedImage(file);
+    form.setValue("imageUrl", imageUrl || '');
   };
   
   const handleSubmit = (values: FormValues) => {
+    // In a real app, we would upload the image first then submit the form
+    // with the uploaded image URL
+    
+    // For demo purposes, we'll just pass the image data URL
+    // In production, you'd upload to Firebase Storage or similar
     onSubmit(values);
     form.reset();
-    setImagePreview(null);
+    setUploadedImage(null);
     onOpenChange(false);
   };
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">Share a Seat</DialogTitle>
         </DialogHeader>
@@ -96,6 +100,22 @@ const CreatePost: React.FC<CreatePostProps> = ({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 gap-4">
+              <FormField
+                control={form.control}
+                name="imageUrl"
+                render={() => (
+                  <FormItem>
+                    <FormLabel>Seat Image</FormLabel>
+                    <FormControl>
+                      <ImageUploader onImageChange={handleImageChange} maxSize={2} />
+                    </FormControl>
+                    <FormDescription>
+                      Add a photo to help others find this seat (max 2MB)
+                    </FormDescription>
+                  </FormItem>
+                )}
+              />
+            
               <FormField
                 control={form.control}
                 name="zone"
@@ -134,6 +154,51 @@ const CreatePost: React.FC<CreatePostProps> = ({
                     </FormControl>
                     <FormDescription>
                       If available, provide the seat or table identifier
+                    </FormDescription>
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="coordinates"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Map Coordinates (Optional)</FormLabel>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            placeholder="X" 
+                            value={field.value?.x || ''} 
+                            onChange={(e) => {
+                              field.onChange({
+                                ...field.value,
+                                x: parseInt(e.target.value) || 0
+                              });
+                            }}
+                          />
+                        </FormControl>
+                      </div>
+                      <div>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            placeholder="Y" 
+                            value={field.value?.y || ''}
+                            onChange={(e) => {
+                              field.onChange({
+                                ...field.value,
+                                y: parseInt(e.target.value) || 0
+                              });
+                            }}
+                          />
+                        </FormControl>
+                      </div>
+                    </div>
+                    <FormDescription>
+                      If you know the coordinates on the library map
                     </FormDescription>
                   </FormItem>
                 )}
@@ -231,37 +296,6 @@ const CreatePost: React.FC<CreatePostProps> = ({
                   </FormItem>
                 )}
               />
-              
-              <div className="border rounded-lg p-4">
-                <FormLabel className="block mb-2">Add Photo (Optional)</FormLabel>
-                <div className="flex items-center space-x-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => document.getElementById('photo-upload')?.click()}
-                  >
-                    <Camera className="h-4 w-4 mr-2" />
-                    Browse...
-                  </Button>
-                  <Input
-                    id="photo-upload"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleImageChange}
-                  />
-                  {imagePreview && (
-                    <div className="relative h-16 w-16 rounded overflow-hidden">
-                      <img
-                        src={imagePreview}
-                        alt="Preview"
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
             
             <DialogFooter>
