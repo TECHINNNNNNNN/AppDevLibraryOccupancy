@@ -11,11 +11,18 @@ import {
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/lib/auth";
+import { useToast } from "@/hooks/use-toast";
 
 const Sidebar: React.FC = () => {
-  const [location] = useLocation();
-  const { user, logout } = useAuth();
+  const [location, navigate] = useLocation();
+  const { toast } = useToast();
+  
+  // Mock user data for the demo
+  const user = {
+    name: 'Somchai P.',
+    studentId: '6XXXXXXXX',
+    profileImage: null
+  };
   
   const navigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -24,6 +31,14 @@ const Sidebar: React.FC = () => {
     { name: 'Library Map', href: '/library-map', icon: Map },
     { name: 'Preferences', href: '/preferences', icon: Settings },
   ];
+
+  const handleLogout = () => {
+    toast({
+      title: "Logged out",
+      description: "You have been successfully logged out.",
+    });
+    navigate('/auth');
+  };
 
   return (
     <aside className="hidden md:flex flex-col w-64 bg-white border-r border-gray-200 p-4">
@@ -72,7 +87,7 @@ const Sidebar: React.FC = () => {
             variant="outline"
             size="sm"
             className="mt-3 w-full"
-            onClick={() => logout()}
+            onClick={handleLogout}
           >
             <LogOut className="mr-2 h-4 w-4" />
             Sign Out

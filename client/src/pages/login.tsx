@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,16 +8,19 @@ import { useAuth } from '@/lib/auth';
 import MicrosoftLoginButton from '@/components/microsoft-login-button';
 import CuLogo from '@/assets/icons/CuLogo';
 
-interface LoginProps {
-  onLogin: () => void;
-}
-
-const Login: React.FC<LoginProps> = ({ onLogin }) => {
+const Login = () => {
   const [_, navigate] = useLocation();
-  const { login } = useAuth();
+  const { user, login } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
   
   const handleMicrosoftLogin = async () => {
     setLoading(true);
@@ -38,7 +41,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         description: 'Welcome to the CU Library Tracker',
       });
       
-      onLogin();
       navigate('/');
     } catch (err) {
       setError('Authentication failed. Please try again.');
