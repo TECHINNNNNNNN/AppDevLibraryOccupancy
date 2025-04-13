@@ -1,0 +1,86 @@
+import React from 'react';
+import { Link, useLocation } from "wouter";
+import CuLogo from "@/assets/icons/CuLogo";
+import {
+  LayoutDashboard,
+  BarChart,
+  Users,
+  Map,
+  Settings,
+  LogOut
+} from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth";
+
+const Sidebar: React.FC = () => {
+  const [location] = useLocation();
+  const { user, logout } = useAuth();
+  
+  const navigation = [
+    { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+    { name: 'Analytics', href: '/analytics', icon: BarChart },
+    { name: 'Social Seating', href: '/social-seating', icon: Users },
+    { name: 'Library Map', href: '/library-map', icon: Map },
+    { name: 'Preferences', href: '/preferences', icon: Settings },
+  ];
+
+  return (
+    <aside className="hidden md:flex flex-col w-64 bg-white border-r border-gray-200 p-4">
+      <div className="mb-6 flex items-center">
+        <CuLogo className="mr-3" />
+        <h1 className="font-heading font-bold text-lg text-gray-900">CU Library Tracker</h1>
+      </div>
+      
+      <nav className="space-y-1 mt-4">
+        {navigation.map((item) => {
+          const isActive = location === item.href;
+          
+          return (
+            <Link 
+              key={item.name} 
+              href={item.href}
+              className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+                isActive
+                  ? 'text-primary bg-primary-50'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-primary'
+              }`}
+            >
+              <item.icon className="h-5 w-5 mr-3" />
+              {item.name}
+            </Link>
+          );
+        })}
+      </nav>
+      
+      <div className="mt-auto pt-4 border-t border-gray-200">
+        <div className="px-3 py-2">
+          <div className="flex items-center">
+            <Avatar className="h-8 w-8">
+              {user?.profileImage ? (
+                <AvatarImage src={user.profileImage} alt={user.name} />
+              ) : (
+                <AvatarFallback className="bg-primary text-white">{user?.name?.charAt(0) || 'U'}</AvatarFallback>
+              )}
+            </Avatar>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-700">{user?.name || 'Guest'}</p>
+              <p className="text-xs font-medium text-gray-500">{user?.studentId || ''}</p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3 w-full"
+            onClick={() => logout()}
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            Sign Out
+          </Button>
+        </div>
+      </div>
+    </aside>
+  );
+};
+
+export default Sidebar;
